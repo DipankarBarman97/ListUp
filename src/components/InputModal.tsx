@@ -1,12 +1,13 @@
-// ONE popup with a text box, used everywhere we need the user to type something:
-// new list, new item, edit item, rename list.
+// ONE popup with a text box, used where the user only types a single name:
+// new list, rename list.
+// (Adding and editing an item uses ItemModal, which also has date, price, qty.)
 // The screen decides the title, the starting text and what happens on Save.
 // The screen can also pass a validate function (for example, to block duplicate
 // names). If it returns a message, the message is shown and Save is blocked.
 
 import { ColorPalette } from "@/constants/colors";
 import { useTheme } from "@/context/ThemeContext";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -47,12 +48,18 @@ export default function InputModal({
   const styles = makeStyles(colors);
 
   const [text, setText] = useState(initialValue);
+  const inputRef = useRef<TextInput>(null);
 
   // Every time the popup opens, put the starting text back in the box
+  // and focus it. autoFocus is unreliable inside an Android Modal,
+  // so we focus by hand after a short delay.
   useEffect(() => {
     if (visible) {
       setText(initialValue.slice(0, maxLength));
+      const timer = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(timer);
     }
+    return undefined;
   }, [visible, initialValue, maxLength]);
 
   // Check the text as the user types. Empty text is not an error here:
@@ -78,7 +85,7 @@ export default function InputModal({
     >
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {/* Tapping the dark area behind the box closes the popup */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
@@ -87,6 +94,7 @@ export default function InputModal({
           <Text style={styles.title}>{title}</Text>
 
           <TextInput
+            ref={inputRef}
             style={[styles.input, error !== null && styles.inputError]}
             placeholder={placeholder}
             placeholderTextColor={colors.mutedText}
@@ -94,7 +102,6 @@ export default function InputModal({
             onChangeText={setText}
             onSubmitEditing={handleSubmit}
             maxLength={maxLength}
-            autoFocus
           />
 
           {/* Error message on the left, counter (e.g. "12/50") on the right */}

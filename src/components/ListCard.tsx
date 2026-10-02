@@ -1,8 +1,9 @@
-// One list shown on the home screen: title, progress, and a delete button.
+// One list shown on the home screen: title, progress, total price, and a delete button.
 
 import { ColorPalette } from "@/constants/colors";
 import { useTheme } from "@/context/ThemeContext";
 import { List } from "@/types";
+import { formatPrice, itemTotal } from "@/utils/formatPrice";
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -18,16 +19,27 @@ export default function ListCard({ list, onPress, onDelete }: Props) {
 
   const doneCount = list.items.filter((item) => item.done).length;
 
+  // Only show a total when at least one item has a price
+  const hasPrices = list.items.some((item) => item.price !== undefined);
+  const total = list.items.reduce((sum, item) => sum + itemTotal(item), 0);
+
   return (
     <View style={styles.card}>
       <TouchableOpacity style={styles.main} onPress={onPress}>
-        <Text style={styles.title}>{list.title}</Text>
+        <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+          {list.title}
+        </Text>
         <Text style={styles.subtitle}>
           {doneCount} of {list.items.length} done
+          {hasPrices ? `  ·  ${formatPrice(total)}` : ""}
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={onDelete} hitSlop={10}>
+      <TouchableOpacity
+        onPress={onDelete}
+        hitSlop={10}
+        accessibilityLabel="Delete list"
+      >
         <Ionicons name="trash-outline" size={22} color={colors.danger} />
       </TouchableOpacity>
     </View>

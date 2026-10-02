@@ -9,7 +9,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { List } from "../types";
+import { ItemInput, List } from "../types";
 
 // Describes everything the context gives to the screens
 type ListsContextType = {
@@ -17,9 +17,9 @@ type ListsContextType = {
   addList: (title: string) => void;
   deleteList: (listId: string) => void;
   renameList: (listId: string, title: string) => void;
-  addItem: (listId: string, text: string) => void;
+  addItem: (listId: string, input: ItemInput) => void;
   toggleItem: (listId: string, itemId: string) => void;
-  editItem: (listId: string, itemId: string, text: string) => void;
+  editItem: (listId: string, itemId: string, input: ItemInput) => void;
   deleteItem: (listId: string, itemId: string) => void;
   clearCompleted: (listId: string) => void;
 };
@@ -76,10 +76,20 @@ export function ListsProvider({ children }: { children: ReactNode }) {
 
   // ----- Functions for items inside a list -----
 
-  function addItem(listId: string, text: string) {
+  function addItem(listId: string, input: ItemInput) {
     updateList(listId, (list) => ({
       ...list,
-      items: [...list.items, { id: createId(), text, done: false }],
+      items: [
+        ...list.items,
+        {
+          id: createId(),
+          text: input.text,
+          done: false,
+          dueDate: input.dueDate,
+          price: input.price,
+          quantity: input.quantity,
+        },
+      ],
     }));
   }
 
@@ -92,11 +102,21 @@ export function ListsProvider({ children }: { children: ReactNode }) {
     }));
   }
 
-  function editItem(listId: string, itemId: string, text: string) {
+  // Replaces text, due date, price and quantity.
+  // A field the user cleared becomes undefined, so it disappears.
+  function editItem(listId: string, itemId: string, input: ItemInput) {
     updateList(listId, (list) => ({
       ...list,
       items: list.items.map((item) =>
-        item.id === itemId ? { ...item, text } : item,
+        item.id === itemId
+          ? {
+              ...item,
+              text: input.text,
+              dueDate: input.dueDate,
+              price: input.price,
+              quantity: input.quantity,
+            }
+          : item,
       ),
     }));
   }

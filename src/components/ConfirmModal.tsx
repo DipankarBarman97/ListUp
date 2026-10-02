@@ -5,7 +5,9 @@
 import { ColorPalette } from "@/constants/colors";
 import { useTheme } from "@/context/ThemeContext";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -51,7 +53,10 @@ export default function ConfirmModal({
       statusBarTranslucent
       onRequestClose={onClose} // Android back button
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         {/* Tapping the dark area behind the box closes the popup */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
@@ -81,7 +86,7 @@ export default function ConfirmModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
