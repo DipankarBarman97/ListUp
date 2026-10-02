@@ -10,7 +10,7 @@ import { ColorPalette } from "@/constants/colors";
 import { useLists } from "@/context/ListsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Item } from "@/types";
-import { sameName } from "@/utiles/sameName";
+import { sameName } from "@/utils/sameName";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";

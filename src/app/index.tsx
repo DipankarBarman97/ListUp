@@ -6,7 +6,7 @@ import { ColorPalette } from "@/constants/colors";
 import { useLists } from "@/context/ListsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { List } from "@/types";
-import { sameName } from "@/utiles/sameName";
+import { sameName } from "@/utils/sameName";
 import { Href, useRouter } from "expo-router";
 import { useState } from "react";
 import { FlatList, StyleSheet, Text } from "react-native";
