@@ -27,7 +27,7 @@ type Props = {
   placeholder?: string; // gray hint text in the box
   initialValue?: string; // text already in the box (used when editing)
   confirmLabel?: string; // text on the main button, e.g. "Add" or "Save"
-  maxLength?: number; // most characters the user can type (default 50)
+  maxLength?: number; // most characters the user can type (default 100)
   validate?: (text: string) => string | null; // error message, or null if OK
   onSubmit: (text: string) => void; // called with the typed text
   onClose: () => void; // called when the popup should close
@@ -39,7 +39,7 @@ export default function InputModal({
   placeholder = "",
   initialValue = "",
   confirmLabel = "Save",
-  maxLength = 50,
+  maxLength = 100,
   validate,
   onSubmit,
   onClose,

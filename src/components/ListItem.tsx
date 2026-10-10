@@ -1,5 +1,5 @@
-// One item inside a list. Tap the box to check it off, tap the text to open
-// the item's details page, pencil to edit, bin to delete.
+// One item inside a list. Tap the box to check it off, tap anywhere else on
+// the row to open the item's details page, pencil to edit, bin to delete.
 // Long names are cut with "..." (the details page shows the full name).
 // Under the name: due date (red when overdue), price and quantity, each on its own.
 // Editing is done in the shared ItemModal, opened by the screen.
@@ -66,7 +66,15 @@ export default function ListItem({
 
   return (
     <>
-      <View style={styles.row}>
+      {/* Tap anywhere on the row to open the details page.
+          The checkbox, edit and delete buttons handle their own taps. */}
+      <TouchableOpacity
+        style={styles.row}
+        onPress={onPress}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${item.text}`}
+      >
         {/* Checkbox */}
         <TouchableOpacity
           onPress={onToggle}
@@ -74,19 +82,14 @@ export default function ListItem({
           accessibilityLabel={item.done ? "Mark as not done" : "Mark as done"}
         >
           <Ionicons
-            name={item.done ? "checkbox" : "square-outline"}
+            name={item.done ? "checkmark-circle" : "ellipse-outline"}
             size={24}
             color={item.done ? colors.primary : colors.mutedText}
           />
         </TouchableOpacity>
 
-        {/* Tap the name and details to open the details page */}
-        <TouchableOpacity
-          style={styles.content}
-          onPress={onPress}
-          activeOpacity={0.7}
-          accessibilityLabel={`Open ${item.text}`}
-        >
+        {/* Name and details */}
+        <View style={styles.content}>
           <Text
             style={[styles.text, item.done && styles.textDone]}
             numberOfLines={1}
@@ -109,7 +112,7 @@ export default function ListItem({
                 renderMeta("cube-outline", `Qty ${item.quantity}`)}
             </View>
           )}
-        </TouchableOpacity>
+        </View>
 
         {/* Edit and delete buttons */}
         <TouchableOpacity
@@ -128,7 +131,7 @@ export default function ListItem({
         >
           <Ionicons name="trash-outline" size={22} color={colors.danger} />
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
 
       <ConfirmModal
         visible={showConfirm}

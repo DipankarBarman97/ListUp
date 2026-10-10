@@ -12,7 +12,6 @@ import { ColorPalette } from "@/constants/colors";
 import { useLists } from "@/context/ListsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Item } from "@/types";
-import { formatPrice, itemTotal } from "@/utils/formatPrice";
 import { sameName } from "@/utils/sameName";
 import { Ionicons } from "@expo/vector-icons";
 import { Href, Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -40,6 +39,13 @@ const EMPTY_MESSAGES: Record<Filter, string> = {
   all: "This list is empty. Tap the + button to add your first item.",
   active: "No active items. Everything is done.",
   done: "Nothing completed yet.",
+};
+
+// The icon shown above the empty message
+const EMPTY_ICONS: Record<Filter, keyof typeof Ionicons.glyphMap> = {
+  all: "list-outline",
+  active: "checkmark-done-outline",
+  done: "hourglass-outline",
 };
 
 export default function ListScreen() {
@@ -70,6 +76,12 @@ export default function ListScreen() {
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("manual");
 
+  // Long titles: the header card shows 2 lines. If the title is longer,
+  // "Show more" lets the user read all of it.
+  const TITLE_COLLAPSED_LINES = 2;
+  const [titleExpanded, setTitleExpanded] = useState(false);
+  const [titleTooLong, setTitleTooLong] = useState(false);
+
   // Pagination
   const PAGE_SIZE = 15;
   const [page, setPage] = useState(1);
@@ -85,13 +97,10 @@ export default function ListScreen() {
 
   const doneCount = list.items.filter((item) => item.done).length;
   const activeCount = list.items.length - doneCount;
-
-  // Price totals: everything, and only the items not checked off yet
-  const hasPrices = list.items.some((item) => item.price !== undefined);
-  const total = list.items.reduce((sum, item) => sum + itemTotal(item), 0);
-  const remaining = list.items
-    .filter((item) => !item.done)
-    .reduce((sum, item) => sum + itemTotal(item), 0);
+  const hasItems = list.items.length > 0;
+  const progressPercent = hasItems
+    ? Math.round((doneCount / list.items.length) * 100)
+    : 0;
 
   // Only the items that match the selected tab
   const filteredItems = list.items.filter((item) => {
@@ -135,69 +144,138 @@ export default function ListScreen() {
       {/* Show the list title in the top bar */}
       <Stack.Screen options={{ title: list.title }} />
 
-      {/* Title with a pencil to rename the list */}
-      <View style={styles.titleRow}>
-        <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
-          {list.title}
-        </Text>
-        <TouchableOpacity
-          onPress={() => setShowRename(true)}
-          hitSlop={10}
-          accessibilityLabel="Rename list"
-        >
-          <Ionicons name="create-outline" size={22} color={colors.mutedText} />
-        </TouchableOpacity>
-      </View>
+      {/* Header card: title, progress, and (if any item has a price) totals */}
+      <View style={styles.headerCard}>
+        {/* Title with a pencil to rename the list */}
+        <View style={styles.titleRow}>
+          <View style={styles.titleWrap}>
+            {/* Tap the title to show all of it (or fold it back) */}
+            <Text
+              style={styles.title}
+              numberOfLines={titleExpanded ? undefined : TITLE_COLLAPSED_LINES}
+              ellipsizeMode="tail"
+              onPress={
+                titleTooLong ? () => setTitleExpanded((v) => !v) : undefined
+              }
+            >
+              {list.title}
+            </Text>
 
-      {/* Progress, and "Clear completed" when something is checked off */}
-      <View style={styles.progressRow}>
-        <Text style={styles.progress}>
-          {doneCount} of {list.items.length} done
-        </Text>
-        {doneCount > 0 && (
+            {/* Invisible copy with NO line limit, only used to count the lines.
+                (A Text with numberOfLines only reports the lines it shows, so it
+                cannot tell us whether it was cut off.) */}
+            <Text
+              style={[styles.title, styles.titleMeasure]}
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
+              onTextLayout={(e) =>
+                setTitleTooLong(
+                  e.nativeEvent.lines.length > TITLE_COLLAPSED_LINES,
+                )
+              }
+            >
+              {list.title}
+            </Text>
+          </View>
           <TouchableOpacity
-            onPress={() => setShowClearConfirm(true)}
+            style={styles.iconButton}
+            onPress={() => setShowRename(true)}
             hitSlop={10}
+            accessibilityLabel="Rename list"
           >
-            <Text style={styles.clearText}>Clear completed</Text>
+            <Ionicons name="create-outline" size={18} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Only shown when the title is longer than 2 lines */}
+        {titleTooLong && (
+          <TouchableOpacity
+            style={styles.titleToggle}
+            onPress={() => setTitleExpanded((v) => !v)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={
+              titleExpanded ? "Show less of the title" : "Show full title"
+            }
+          >
+            <Text style={styles.titleToggleText}>
+              {titleExpanded ? "Show less" : "Show more"}
+            </Text>
+            <Ionicons
+              name={titleExpanded ? "chevron-up" : "chevron-down"}
+              size={14}
+              color={colors.primary}
+            />
           </TouchableOpacity>
         )}
-      </View>
 
-      {/* Totals on the left (only if some item has a price), sort button on the right */}
-      <View style={styles.infoRow}>
-        {hasPrices && (
-          <Text style={styles.totals}>
-            Total {formatPrice(total)} · Left {formatPrice(remaining)}
-          </Text>
+        {/* Progress, and "Clear completed" when something is checked off */}
+        {hasItems && (
+          <View style={styles.progressRow}>
+            <Text style={styles.progress}>
+              {doneCount} of {list.items.length} done
+            </Text>
+            {doneCount > 0 && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => setShowClearConfirm(true)}
+                hitSlop={10}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={14}
+                  color={colors.danger}
+                />
+                <Text style={styles.clearText}>Clear completed</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
-        <TouchableOpacity
-          style={styles.sortButton}
-          onPress={toggleSort}
-          hitSlop={10}
-          accessibilityLabel="Change sort order"
-        >
-          <Ionicons name="swap-vertical" size={16} color={colors.primary} />
-          <Text style={styles.sortText}>
-            {sort === "due" ? "Due date" : "Manual"}
-          </Text>
-        </TouchableOpacity>
+
+        {hasItems && (
+          <View style={styles.progressTrack}>
+            <View
+              style={[styles.progressFill, { width: `${progressPercent}%` }]}
+            />
+          </View>
+        )}
       </View>
 
-      {/* Tabs: All / Active / Done */}
-      <FilterTabs
-        tabs={[
-          { key: "all", label: "All", count: list.items.length },
-          { key: "active", label: "Active", count: activeCount },
-          { key: "done", label: "Done", count: doneCount },
-        ]}
-        value={filter}
-        onChange={changeFilter}
-      />
+      {/* Sort and filter only make sense when the list has items */}
+      {hasItems && (
+        <>
+          <View style={styles.controlsRow}>
+            <Text style={styles.sectionLabel}>Items</Text>
+            <TouchableOpacity
+              style={styles.sortButton}
+              onPress={toggleSort}
+              hitSlop={10}
+              accessibilityLabel="Change sort order"
+            >
+              <Ionicons name="swap-vertical" size={15} color={colors.primary} />
+              <Text style={styles.sortText}>
+                {sort === "due" ? "Due date" : "Manual"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Tabs: All / Active / Done */}
+          <FilterTabs
+            tabs={[
+              { key: "all", label: "All", count: list.items.length },
+              { key: "active", label: "Active", count: activeCount },
+              { key: "done", label: "Done", count: doneCount },
+            ]}
+            value={filter}
+            onChange={changeFilter}
+          />
+        </>
+      )}
 
       <FlatList
         data={pageItems}
         keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <ListItem
@@ -209,7 +287,16 @@ export default function ListScreen() {
           />
         )}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>{EMPTY_MESSAGES[filter]}</Text>
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons
+                name={EMPTY_ICONS[filter]}
+                size={32}
+                color={colors.primary}
+              />
+            </View>
+            <Text style={styles.emptyText}>{EMPTY_MESSAGES[filter]}</Text>
+          </View>
         }
       />
 
@@ -309,65 +396,149 @@ function makeStyles(colors: ColorPalette) {
       paddingHorizontal: 20,
       paddingTop: 20,
     },
+    // --- Header card ---
+    headerCard: {
+      backgroundColor: colors.glass,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+    },
     titleRow: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       justifyContent: "space-between",
     },
-    title: {
+    titleWrap: {
       flex: 1,
-      fontSize: 26,
-      fontWeight: "700",
-      color: colors.text,
       marginRight: 12,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: "500",
+      color: colors.text,
+      marginTop: 3.5,
+    },
+    // Same width and font as the title, but invisible and out of the layout
+    titleMeasure: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      opacity: 0,
+      pointerEvents: "none",
+    },
+    titleToggle: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      gap: 2,
+      marginTop: 6,
+    },
+    titleToggleText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.primary,
+    },
+    iconButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${colors.primary}1F`,
     },
     progressRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      marginTop: 4,
+      marginTop: 12,
       marginBottom: 8,
     },
     progress: {
       fontSize: 14,
+      fontWeight: "500",
       color: colors.mutedText,
     },
+    clearButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      borderRadius: 999,
+      backgroundColor: `${colors.danger}1A`,
+    },
     clearText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "600",
       color: colors.danger,
     },
-    infoRow: {
+    progressTrack: {
+      height: 6,
+      borderRadius: 3,
+      overflow: "hidden",
+      backgroundColor: `${colors.primary}26`,
+    },
+    progressFill: {
+      height: "100%",
+      borderRadius: 3,
+      backgroundColor: colors.primary,
+    },
+
+    // --- Sort row ---
+    controlsRow: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 12,
+      justifyContent: "space-between",
+      marginBottom: 10,
     },
-    totals: {
-      flex: 1,
-      fontSize: 14,
-      fontWeight: "600",
-      color: colors.text,
-      marginRight: 12,
+    sectionLabel: {
+      fontSize: 13,
+      fontWeight: "700",
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
+      color: colors.mutedText,
     },
     sortButton: {
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
-      marginLeft: "auto",
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      borderRadius: 999,
+      backgroundColor: `${colors.primary}1F`,
     },
     sortText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "600",
       color: colors.primary,
     },
+
+    // --- List and empty state ---
     listContent: {
       paddingBottom: 100, // space so the + button never covers the last item
+    },
+    emptyState: {
+      alignItems: "center",
+      marginTop: 48,
+      paddingHorizontal: 24,
+    },
+    emptyIconCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${colors.primary}1F`,
     },
     emptyText: {
       textAlign: "center",
       color: colors.mutedText,
-      marginTop: 40,
+      marginTop: 16,
       fontSize: 16,
+      lineHeight: 22,
     },
   });
 }

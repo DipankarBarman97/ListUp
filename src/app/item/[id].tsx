@@ -1,10 +1,10 @@
 // The details page for ONE item. It opens when you tap an item in a list.
-// Shows everything about the item (full name, due date, price, quantity, total)
-// and lets you mark it done, edit it, or delete it.
+// Shows everything about the item (full name, due date, price, quantity, total).
+// A checkbox marks it done, and the "Actions" dropdown lets you edit or delete it.
 // The [id] in the file name is the item's id, taken from the URL.
 
+import ActionMenu, { MenuAction } from "@/components/ActionMenu";
 import ConfirmModal from "@/components/ConfirmModal";
-import GradientBox from "@/components/GradientBox";
 import ItemModal from "@/components/ItemModal";
 import ScreenBackground from "@/components/ScreenBackground";
 import { ColorPalette } from "@/constants/colors";
@@ -18,11 +18,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -47,9 +48,10 @@ export default function ItemScreen() {
   const { colors } = useTheme(); // the colors for the current mode
   const styles = makeStyles(colors);
 
-  // Which popup is open?
+  // Which popup is open? And is the Actions dropdown open?
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const found = findItem(lists, id);
 
@@ -67,6 +69,21 @@ export default function ItemScreen() {
   const overdue =
     !item.done && item.dueDate !== undefined && isOverdue(item.dueDate);
 
+  // What the Actions dropdown offers
+  const actions: MenuAction[] = [
+    {
+      label: "Edit",
+      icon: "create-outline",
+      onPress: () => setShowEdit(true),
+    },
+    {
+      label: "Delete",
+      icon: "trash-outline",
+      onPress: () => setShowDelete(true),
+      destructive: true,
+    },
+  ];
+
   // One line of the details card: icon + label on the left, value on the right.
   // value = null means "not set".
   function renderRow(
@@ -78,7 +95,13 @@ export default function ItemScreen() {
     return (
       <View style={styles.row}>
         <View style={styles.rowLabel}>
-          <Ionicons name={icon} size={18} color={colors.mutedText} />
+          <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
+            <Ionicons
+              name={icon}
+              size={16}
+              color={danger ? colors.danger : colors.primary}
+            />
+          </View>
           <Text style={styles.rowLabelText}>{label}</Text>
         </View>
         <Text
@@ -103,24 +126,56 @@ export default function ItemScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Full name: wraps over as many lines as it needs */}
-        <Text style={[styles.title, item.done && styles.titleDone]}>
-          {item.text}
-        </Text>
+        {/* Header: checkbox, full name (wraps over as many lines as it needs)
+            and the Actions dropdown. It sits above the layer below so the
+            open menu stays tappable. */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.checkbox}
+            onPress={() => toggleItem(list.id, item.id)}
+            hitSlop={10}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: item.done }}
+            accessibilityLabel={item.done ? "Mark as not done" : "Mark as done"}
+          >
+            <Ionicons
+              name={item.done ? "checkmark-circle" : "ellipse-outline"}
+              size={26}
+              color={item.done ? colors.primary : colors.mutedText}
+            />
+          </TouchableOpacity>
 
-        {/* Done / Active */}
-        <View style={styles.statusRow}>
-          <Ionicons
-            name={item.done ? "checkmark-circle" : "ellipse-outline"}
-            size={18}
-            color={item.done ? colors.primary : colors.mutedText}
-          />
-          <Text style={styles.statusLabel}>
-            {item.done ? "Done" : "Active"}
+          <Text style={[styles.title, item.done && styles.titleDone]}>
+            {item.text}
           </Text>
+
+          <ActionMenu
+            open={menuOpen}
+            onToggle={() => setMenuOpen((open) => !open)}
+            onClose={() => setMenuOpen(false)}
+            actions={actions}
+          />
         </View>
 
+        {/* Tap anywhere outside the dropdown to close it */}
+        {menuOpen && (
+          <Pressable
+            style={styles.backdrop}
+            onPress={() => setMenuOpen(false)}
+            accessibilityLabel="Close menu"
+          />
+        )}
+
         {/* Details card */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionLabel}>Details</Text>
+          {overdue && (
+            <View style={[styles.badge, styles.badgeDanger]}>
+              <Ionicons name="alert-circle" size={14} color={colors.danger} />
+              <Text style={[styles.badgeText, styles.dangerText]}>Overdue</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.card}>
           {renderRow("list-outline", "List", list.title)}
           <View style={styles.divider} />
@@ -150,42 +205,6 @@ export default function ItemScreen() {
               {renderRow("cash-outline", "Total", formatPrice(itemTotal(item)))}
             </>
           )}
-        </View>
-
-        {/* Main action: mark done / not done */}
-        <TouchableOpacity
-          style={styles.mainButton}
-          onPress={() => toggleItem(list.id, item.id)}
-        >
-          <GradientBox style={styles.mainButtonInner}>
-            <Ionicons
-              name={item.done ? "refresh" : "checkmark"}
-              size={20}
-              color={colors.white}
-            />
-            <Text style={styles.mainButtonText}>
-              {item.done ? "Mark as not done" : "Mark as done"}
-            </Text>
-          </GradientBox>
-        </TouchableOpacity>
-
-        {/* Edit and delete */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => setShowEdit(true)}
-          >
-            <Ionicons name="create-outline" size={20} color={colors.text} />
-            <Text style={styles.actionText}>Edit</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => setShowDelete(true)}
-          >
-            <Ionicons name="trash-outline" size={20} color={colors.danger} />
-            <Text style={[styles.actionText, styles.dangerText]}>Delete</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -231,37 +250,85 @@ function makeStyles(colors: ColorPalette) {
       flex: 1,
       backgroundColor: colors.background,
       paddingHorizontal: 20,
-      paddingTop: 20,
+      paddingTop: 16,
     },
+
+    // flexGrow lets the dim layer below cover the whole screen, even when
+    // the content is short
     content: {
+      flexGrow: 1,
       paddingBottom: 24,
     },
+
+    // --- Header and dropdown layering (header > backdrop > rest of content) ---
+    header: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+      marginBottom: 20,
+      zIndex: 20,
+      elevation: 20,
+    },
+    checkbox: {
+      marginTop: 3.5, // lines the box up with the first line of the title
+    },
     title: {
-      fontSize: 26,
-      fontWeight: "700",
+      marginTop: 3.5,
+      flex: 1,
+      fontSize: 20,
+      fontWeight: "600",
+      lineHeight: 28,
       color: colors.text,
     },
     titleDone: {
       textDecorationLine: "line-through",
       color: colors.doneText,
     },
-    statusRow: {
+    backdrop: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      zIndex: 10,
+      elevation: 10,
+    },
+
+    // --- Details ---
+    sectionRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      marginTop: 8,
-      marginBottom: 16,
+      justifyContent: "space-between",
+      gap: 8,
+      marginBottom: 10,
     },
-    statusLabel: {
-      fontSize: 14,
+    badge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+    },
+    badgeDanger: {
+      backgroundColor: `${colors.danger}1A`,
+    },
+    badgeText: {
+      fontSize: 13,
       fontWeight: "600",
+    },
+    sectionLabel: {
+      fontSize: 13,
+      fontWeight: "700",
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
       color: colors.mutedText,
     },
     card: {
       backgroundColor: colors.glass,
       borderWidth: 1,
       borderColor: colors.glassBorder,
-      borderRadius: 10,
+      borderRadius: 14,
       paddingHorizontal: 16,
     },
     row: {
@@ -269,12 +336,23 @@ function makeStyles(colors: ColorPalette) {
       alignItems: "center",
       justifyContent: "space-between",
       gap: 12,
-      paddingVertical: 14,
+      paddingVertical: 12,
     },
     rowLabel: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: 10,
+    },
+    rowIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${colors.primary}1F`,
+    },
+    rowIconDanger: {
+      backgroundColor: `${colors.danger}1A`,
     },
     rowLabelText: {
       fontSize: 15,
@@ -297,48 +375,6 @@ function makeStyles(colors: ColorPalette) {
     divider: {
       height: 1,
       backgroundColor: colors.border,
-    },
-    mainButton: {
-      borderRadius: 10,
-      overflow: "hidden", // keep the gradient inside the rounded corners
-      marginTop: 20,
-    },
-    mainButtonInner: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-      paddingVertical: 14,
-    },
-    mainButtonText: {
-      fontSize: 16,
-      fontWeight: "600",
-      color: colors.white,
-    },
-    actionRow: {
-      flexDirection: "row",
-      gap: 12,
-      marginTop: 12,
-    },
-    actionButton: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      paddingVertical: 12,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.card,
-    },
-    deleteButton: {
-      borderColor: colors.danger,
-    },
-    actionText: {
-      fontSize: 16,
-      fontWeight: "600",
-      color: colors.text,
     },
     emptyText: {
       textAlign: "center",

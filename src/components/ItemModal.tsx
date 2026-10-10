@@ -12,17 +12,17 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useEffect, useRef, useState } from "react";
 import {
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import GradientBox from "./GradientBox";
 
@@ -31,7 +31,7 @@ type Props = {
   title: string; // heading, e.g. "Add item"
   confirmLabel?: string; // text on the main button
   initial?: ItemInput; // values already filled in (used when editing)
-  maxLength?: number; // most characters in the name (default 50)
+  maxLength?: number; // most characters in the name (default 100)
   validate?: (text: string) => string | null; // error message, or null if OK
   onSubmit: (input: ItemInput) => void; // called with everything the user entered
   onClose: () => void; // called when the popup should close
@@ -49,7 +49,7 @@ export default function ItemModal({
   title,
   confirmLabel = "Save",
   initial,
-  maxLength = 50,
+  maxLength = 100,
   validate,
   onSubmit,
   onClose,
@@ -295,7 +295,7 @@ export default function ItemModal({
                     }
                     keyboardType="number-pad"
                     autoFocus={focusNew}
-                    maxLength={4}
+                    maxLength={10}
                   />
                 )}
               </View>
